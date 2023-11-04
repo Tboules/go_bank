@@ -9,30 +9,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func WriteJSON(w http.ResponseWriter, status int, v any) error {
-	w.WriteHeader(status)
-	w.Header().Set("Content-Type", "application/json")
-	return json.NewEncoder(w).Encode(v)
-}
-
-type apiFunc func(http.ResponseWriter, *http.Request) error
-
-type ApiError struct {
-	Error string
-}
-
-func makeHttpHandlerFunc(f apiFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		err := f(w, r)
-
-		if err != nil {
-			WriteJSON(w, http.StatusBadRequest, ApiError{
-				Error: err.Error(),
-			})
-		}
-	}
-}
-
 type ApiServer struct {
 	listenAddress string
 }
@@ -47,6 +23,7 @@ func (s *ApiServer) Run() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/account", makeHttpHandlerFunc(s.handleAccount))
+	router.HandleFunc("/account/{id}", makeHttpHandlerFunc(s.handleGetAccount))
 
 	log.Println("JSON API running on port: ", s.listenAddress)
 
@@ -71,7 +48,12 @@ func (s *ApiServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 }
 
 func (s *ApiServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error {
-	return nil
+	account := NewAccount("Anthony", "Boules")
+	vars := mux.Vars(r)
+
+	fmt.Printf("id: %v\n", vars["id"])
+
+	return WriteJSON(w, http.StatusOK, account)
 }
 
 func (s *ApiServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
@@ -84,4 +66,28 @@ func (s *ApiServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
 
 func (s *ApiServer) handleTranfer(w http.ResponseWriter, r *http.Request) error {
 	return nil
+}
+
+func WriteJSON(w http.ResponseWriter, status int, v any) error {
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(status)
+	return json.NewEncoder(w).Encode(v)
+}
+
+type apiFunc func(http.ResponseWriter, *http.Request) error
+
+type ApiError struct {
+	Error string
+}
+
+func makeHttpHandlerFunc(f apiFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		err := f(w, r)
+
+		if err != nil {
+			WriteJSON(w, http.StatusBadRequest, ApiError{
+				Error: err.Error(),
+			})
+		}
+	}
 }
