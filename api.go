@@ -11,11 +11,13 @@ import (
 
 type ApiServer struct {
 	listenAddress string
+	store         Storage
 }
 
-func NewApiServer(listenAddress string) *ApiServer {
+func NewApiServer(listenAddress string, store Storage) *ApiServer {
 	return &ApiServer{
 		listenAddress: listenAddress,
+		store:         store,
 	}
 }
 
@@ -28,7 +30,6 @@ func (s *ApiServer) Run() {
 	log.Println("JSON API running on port: ", s.listenAddress)
 
 	http.ListenAndServe(s.listenAddress, router)
-
 }
 
 func (s *ApiServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
