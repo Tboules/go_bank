@@ -2,16 +2,16 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 
 	_ "github.com/lib/pq"
 )
 
 type Storage interface {
-	CreateAccount(*Account) error
+	CreateAccount(*Account) (*Account, error)
 	DeleteAccount(int) error
 	UpdateAccount(*Account) error
 	GetAccountByID(int) (*Account, error)
+	GetAccounts() ([]*Account, error)
 }
 
 type PostgresStore struct {
@@ -53,8 +53,27 @@ func (s *PostgresStore) CreateAccountTable() error {
 	return err
 }
 
-func (*PostgresStore) CreateAccount(*Account) error {
-	return nil
+func (s *PostgresStore) CreateAccount(acc *Account) (*Account, error) {
+	query := `
+    INSERT INTO account (first_name, last_name, number, balance, created_at)
+    VALUES ($1, $2, $3, $4, $5)
+    RETURNING id, first_name, last_name, number, balance, created_at
+`
+	account := new(Account)
+
+	err := s.db.QueryRow(query, acc.FirstName, acc.LastName, acc.Number, acc.Balance, acc.CreatedAt).Scan(
+		&account.ID,
+		&account.FirstName,
+		&account.LastName,
+		&account.Number,
+		&account.Balance,
+		&account.CreatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	return account, nil
 }
 
 func (*PostgresStore) DeleteAccount(id int) error {
@@ -67,4 +86,30 @@ func (*PostgresStore) UpdateAccount(*Account) error {
 
 func (*PostgresStore) GetAccountByID(id int) (*Account, error) {
 	return nil, nil
+}
+
+func (s *PostgresStore) GetAccounts() ([]*Account, error) {
+	rows, err := s.db.Query("SELECT * FROM account")
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	accountSlice := []*Account{}
+
+	for rows.Next() {
+		account := new(Account)
+
+		if err := rows.Scan(&account.ID, &account.FirstName, &account.LastName, &account.Number, &account.Balance, &account.CreatedAt); err != nil {
+			return accountSlice, err
+		}
+
+		accountSlice = append(accountSlice, account)
+
+	}
+
+	return accountSlice, nil
+
 }

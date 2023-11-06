@@ -25,7 +25,7 @@ func (s *ApiServer) Run() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/account", makeHttpHandlerFunc(s.handleAccount))
-	router.HandleFunc("/account/{id}", makeHttpHandlerFunc(s.handleGetAccount))
+	router.HandleFunc("/account/{id}", makeHttpHandlerFunc(s.handleGetAccountByID))
 
 	log.Println("JSON API running on port: ", s.listenAddress)
 
@@ -49,6 +49,17 @@ func (s *ApiServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 }
 
 func (s *ApiServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error {
+	accounts, err := s.store.GetAccounts()
+
+	if err != nil {
+		return err
+	}
+
+	return WriteJSON(w, http.StatusOK, accounts)
+
+}
+
+func (s *ApiServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request) error {
 	account := NewAccount("Anthony", "Boules")
 	vars := mux.Vars(r)
 
@@ -58,7 +69,21 @@ func (s *ApiServer) handleGetAccount(w http.ResponseWriter, r *http.Request) err
 }
 
 func (s *ApiServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
-	return nil
+	createAccountParams := new(CreateAccountParams)
+
+	err := json.NewDecoder(r.Body).Decode(createAccountParams)
+	if err != nil {
+		return err
+	}
+
+	account := NewAccount(createAccountParams.FirstName, createAccountParams.LastName)
+
+	dbAcc, err := s.store.CreateAccount(account)
+	if err != nil {
+		return err
+	}
+
+	return WriteJSON(w, http.StatusOK, dbAcc)
 }
 
 func (s *ApiServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
