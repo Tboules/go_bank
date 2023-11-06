@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 
 	_ "github.com/lib/pq"
 )
@@ -32,6 +33,24 @@ func NewPostgresStore() (*PostgresStore, error) {
 	return &PostgresStore{
 		db: db,
 	}, nil
+}
+
+func (s *PostgresStore) Init() error {
+	return s.CreateAccountTable()
+}
+
+func (s *PostgresStore) CreateAccountTable() error {
+	query := `CREATE TABLE IF NOT EXISTS account (
+    id serial PRIMARY KEY,
+    first_name varchar(50),
+    last_name varchar(50),
+    number serial,
+    balance serial,
+    created_at timestamp
+  )`
+
+	_, err := s.db.Exec(query)
+	return err
 }
 
 func (*PostgresStore) CreateAccount(*Account) error {
