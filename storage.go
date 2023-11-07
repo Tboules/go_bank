@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 
 	_ "github.com/lib/pq"
 )
@@ -59,15 +60,9 @@ func (s *PostgresStore) CreateAccount(acc *Account) (*Account, error) {
     VALUES ($1, $2, $3, $4, $5)
     RETURNING id, first_name, last_name, number, balance, created_at
 `
-	account := new(Account)
 
-	err := s.db.QueryRow(query, acc.FirstName, acc.LastName, acc.Number, acc.Balance, acc.CreatedAt).Scan(
-		&account.ID,
-		&account.FirstName,
-		&account.LastName,
-		&account.Number,
-		&account.Balance,
-		&account.CreatedAt,
+	account, err := extractAccountFromRow(
+		s.db.QueryRow(query, acc.FirstName, acc.LastName, acc.Number, acc.Balance, acc.CreatedAt),
 	)
 
 	if err != nil {
@@ -76,16 +71,31 @@ func (s *PostgresStore) CreateAccount(acc *Account) (*Account, error) {
 	return account, nil
 }
 
-func (*PostgresStore) DeleteAccount(id int) error {
-	return nil
+func (s *PostgresStore) DeleteAccount(id int) error {
+	_, err := s.db.Exec(`DELETE FROM account WHERE id = $1`, id)
+
+	return err
 }
 
 func (*PostgresStore) UpdateAccount(*Account) error {
 	return nil
 }
 
-func (*PostgresStore) GetAccountByID(id int) (*Account, error) {
-	return nil, nil
+func (s *PostgresStore) GetAccountByID(id int) (*Account, error) {
+	query := `
+    SELECT * FROM account
+    WHERE id = $1
+  `
+
+	account, err := extractAccountFromRow(
+		s.db.QueryRow(query, id),
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("Account %d not found", id)
+	}
+
+	return account, nil
 }
 
 func (s *PostgresStore) GetAccounts() ([]*Account, error) {
@@ -100,16 +110,33 @@ func (s *PostgresStore) GetAccounts() ([]*Account, error) {
 	accountSlice := []*Account{}
 
 	for rows.Next() {
-		account := new(Account)
-
-		if err := rows.Scan(&account.ID, &account.FirstName, &account.LastName, &account.Number, &account.Balance, &account.CreatedAt); err != nil {
-			return accountSlice, err
+		account, err := extractAccountFromRow(rows)
+		if err != nil {
+			return nil, err
 		}
 
 		accountSlice = append(accountSlice, account)
-
 	}
 
 	return accountSlice, nil
 
+}
+
+type SqlRowOrRows interface {
+	Scan(dest ...any) error
+}
+
+func extractAccountFromRow(rowOrRows SqlRowOrRows) (*Account, error) {
+	account := new(Account)
+
+	err := rowOrRows.Scan(
+		&account.ID,
+		&account.FirstName,
+		&account.LastName,
+		&account.Number,
+		&account.Balance,
+		&account.CreatedAt,
+	)
+
+	return account, err
 }
