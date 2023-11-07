@@ -72,7 +72,15 @@ func (s *PostgresStore) CreateAccount(acc *Account) (*Account, error) {
 }
 
 func (s *PostgresStore) DeleteAccount(id int) error {
-	_, err := s.db.Exec(`DELETE FROM account WHERE id = $1`, id)
+	rows, err := s.db.Exec(`DELETE FROM account WHERE id = $1`, id)
+
+	count, err := rows.RowsAffected()
+
+	if err != nil || count == 0 {
+
+		return fmt.Errorf("Account with id:%v not found", id)
+
+	}
 
 	return err
 }
