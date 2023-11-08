@@ -5,6 +5,7 @@ import (
 )
 
 func main() {
+	//test
 	store, err := NewPostgresStore()
 
 	if err != nil {
