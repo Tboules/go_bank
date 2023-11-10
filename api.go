@@ -6,7 +6,9 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 )
 
@@ -46,7 +48,16 @@ func (s *ApiServer) handleAuth(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	fmt.Println("User found now inject JWT")
-	return nil
+
+	token, err := generateJWT(createAccountParams)
+
+	if err != nil {
+		return err
+	}
+
+	return WriteJSON(w, http.StatusOK, map[string]any{
+		"token": token,
+	})
 }
 
 func (s *ApiServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
@@ -176,4 +187,24 @@ func getIdFromRequest(r *http.Request) (int, error) {
 	}
 
 	return id, nil
+}
+
+type CustomClaims struct {
+	CreateAccountParams
+	jwt.RegisteredClaims
+}
+
+var mySigningString = []byte("LJChmom237")
+
+func generateJWT(account *CreateAccountParams) (string, error) {
+	claims := CustomClaims{
+		*account,
+		jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	return token.SignedString(mySigningString)
 }
