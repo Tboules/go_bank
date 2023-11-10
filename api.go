@@ -26,11 +26,27 @@ func (s *ApiServer) Run() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/account", makeHttpHandlerFunc(s.handleAccount))
-	router.HandleFunc("/account/{id}", makeHttpHandlerFunc(s.handleAccountWithID))
+	router.HandleFunc("/account/{id}", withJWTAuth(makeHttpHandlerFunc(s.handleAccountWithID)))
+	router.HandleFunc("/auth", makeHttpHandlerFunc(s.handleAuth))
 
 	log.Println("JSON API running on port: ", s.listenAddress)
 
 	http.ListenAndServe(s.listenAddress, router)
+}
+
+func (s *ApiServer) handleAuth(w http.ResponseWriter, r *http.Request) error {
+	createAccountParams := new(CreateAccountParams)
+
+	json.NewDecoder(r.Body).Decode(createAccountParams)
+
+	err := s.store.AuthUser(createAccountParams)
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("User found now inject JWT")
+	return nil
 }
 
 func (s *ApiServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
@@ -47,7 +63,7 @@ func (s *ApiServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 
 func (s *ApiServer) handleAccountWithID(w http.ResponseWriter, r *http.Request) error {
 	if r.Method == "GET" {
-		return s.handleAccountWithID(w, r)
+		return s.handleGetAccountByID(w, r)
 	}
 
 	if r.Method == "DELETE" {
@@ -128,6 +144,15 @@ type apiFunc func(http.ResponseWriter, *http.Request) error
 
 type ApiError struct {
 	Error string `json:"error"`
+}
+
+//middleware
+
+func withJWTAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("Calling Auth Middleware")
+		handlerFunc(w, r)
+	}
 }
 
 func makeHttpHandlerFunc(f apiFunc) http.HandlerFunc {

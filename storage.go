@@ -13,6 +13,7 @@ type Storage interface {
 	UpdateAccount(*Account) error
 	GetAccountByID(int) (*Account, error)
 	GetAccounts() ([]*Account, error)
+	AuthUser(*CreateAccountParams) error
 }
 
 type PostgresStore struct {
@@ -86,6 +87,27 @@ func (s *PostgresStore) DeleteAccount(id int) error {
 }
 
 func (*PostgresStore) UpdateAccount(*Account) error {
+	return nil
+}
+
+func (s *PostgresStore) AuthUser(account *CreateAccountParams) error {
+	query := `
+    SELECT * FROM account
+    WHERE first_name = $1 
+    AND last_name = $2
+  `
+	rows, err := s.db.Exec(query, &account.FirstName, &account.LastName)
+
+	if err != nil {
+		return fmt.Errorf("User not found")
+	}
+
+	count, err := rows.RowsAffected()
+
+	if err != nil || count != 1 {
+		return fmt.Errorf("User not found")
+	}
+
 	return nil
 }
 
