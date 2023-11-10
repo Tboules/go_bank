@@ -114,7 +114,7 @@ func (s *ApiServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
 	return WriteJSON(w, http.StatusOK, "Successfully deleted account")
 }
 
-func (s *ApiServer) handleTranfer(w http.ResponseWriter, r *http.Request) error {
+func (s *ApiServer) handleTransfer(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
