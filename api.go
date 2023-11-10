@@ -208,3 +208,20 @@ func generateJWT(account *CreateAccountParams) (string, error) {
 
 	return token.SignedString(mySigningString)
 }
+
+func verifyJWT(tokenString string) error {
+	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+		fmt.Println(token)
+		return mySigningString, nil
+	})
+
+	if err != nil {
+		return err
+	} else if claims, ok := token.Claims.(*CustomClaims); ok {
+		fmt.Println(claims.FirstName, claims.ExpiresAt.String())
+	} else {
+		return err
+	}
+
+	return nil
+}
