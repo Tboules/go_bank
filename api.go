@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -161,7 +162,16 @@ type ApiError struct {
 
 func withJWTAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("Calling Auth Middleware")
+		token := strings.Replace(r.Header.Get("Authorization"), "Bearer ", "", 1)
+
+		err := verifyJWT(token)
+		if err != nil {
+			WriteJSON(w, http.StatusUnauthorized, ApiError{
+				Error: "Invalid Token",
+			})
+			return
+		}
+
 		handlerFunc(w, r)
 	}
 }
@@ -211,7 +221,6 @@ func generateJWT(account *CreateAccountParams) (string, error) {
 
 func verifyJWT(tokenString string) error {
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
-		fmt.Println(token)
 		return mySigningString, nil
 	})
 
