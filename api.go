@@ -164,13 +164,15 @@ func withJWTAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := strings.Replace(r.Header.Get("Authorization"), "Bearer ", "", 1)
 
-		err := verifyJWT(token)
+		claims, err := verifyJWT(token)
 		if err != nil {
 			WriteJSON(w, http.StatusUnauthorized, ApiError{
 				Error: "Invalid Token",
 			})
 			return
 		}
+
+		fmt.Printf("Claims: %+v", claims)
 
 		handlerFunc(w, r)
 	}
@@ -219,18 +221,18 @@ func generateJWT(account *Account) (string, error) {
 	return token.SignedString(mySigningString)
 }
 
-func verifyJWT(tokenString string) error {
+func verifyJWT(tokenString string) (*CustomClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return mySigningString, nil
 	})
 
 	if err != nil {
-		return err
+		return nil, err
 	} else if claims, ok := token.Claims.(*CustomClaims); ok {
 		fmt.Println(claims.FirstName, claims.ExpiresAt.String())
 	} else {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return token.Claims.(*CustomClaims), nil
 }
