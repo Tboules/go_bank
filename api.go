@@ -42,7 +42,7 @@ func (s *ApiServer) handleAuth(w http.ResponseWriter, r *http.Request) error {
 
 	json.NewDecoder(r.Body).Decode(createAccountParams)
 
-	err := s.store.AuthUser(createAccountParams)
+	account, err := s.store.AuthUser(createAccountParams)
 
 	if err != nil {
 		return err
@@ -50,7 +50,7 @@ func (s *ApiServer) handleAuth(w http.ResponseWriter, r *http.Request) error {
 
 	fmt.Println("User found now inject JWT")
 
-	token, err := generateJWT(createAccountParams)
+	token, err := generateJWT(account)
 
 	if err != nil {
 		return err
@@ -200,13 +200,13 @@ func getIdFromRequest(r *http.Request) (int, error) {
 }
 
 type CustomClaims struct {
-	CreateAccountParams
+	Account
 	jwt.RegisteredClaims
 }
 
 var mySigningString = []byte("LJChmom237")
 
-func generateJWT(account *CreateAccountParams) (string, error) {
+func generateJWT(account *Account) (string, error) {
 	claims := CustomClaims{
 		*account,
 		jwt.RegisteredClaims{
