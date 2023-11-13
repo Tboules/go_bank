@@ -29,7 +29,7 @@ func (s *ApiServer) Run() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/account", makeHttpHandlerFunc(s.handleAccount))
-	router.HandleFunc("/account/{id}", withJWTAuth(makeHttpHandlerFunc(s.handleAccountWithID)))
+	router.HandleFunc("/account/{id}", withJWTAuth(makeHttpHandlerFunc(s.handleAccountWithID), s.store))
 	router.HandleFunc("/auth", makeHttpHandlerFunc(s.handleAuth))
 
 	log.Println("JSON API running on port: ", s.listenAddress)
@@ -160,19 +160,37 @@ type ApiError struct {
 
 //middleware
 
-func withJWTAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
+func permissionDenied(w http.ResponseWriter) {
+	WriteJSON(w, http.StatusUnauthorized, ApiError{
+		Error: "Permission Denied",
+	})
+}
+
+func withJWTAuth(handlerFunc http.HandlerFunc, store Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := strings.Replace(r.Header.Get("Authorization"), "Bearer ", "", 1)
 
-		claims, err := verifyJWT(token)
+		userID, err := getIdFromRequest(r)
 		if err != nil {
-			WriteJSON(w, http.StatusUnauthorized, ApiError{
-				Error: "Invalid Token",
-			})
 			return
 		}
 
-		fmt.Printf("Claims: %+v", claims)
+		claims, err := verifyJWT(token)
+		if err != nil {
+			permissionDenied(w)
+			return
+		}
+
+		account, err := store.GetAccountByID(userID)
+		if err != nil {
+			permissionDenied(w)
+			return
+		}
+
+		if account.Number != claims.Number {
+			permissionDenied(w)
+			return
+		}
 
 		handlerFunc(w, r)
 	}
